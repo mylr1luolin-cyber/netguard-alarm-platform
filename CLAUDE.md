@@ -63,6 +63,8 @@ cmd /c "chcp 65001 >nul && \"D:\devtools\mysql\mysql-8.0.28-winx64\bin\mysql.exe
 | 答辩口播稿（5 分钟标准版 / 2.5 分钟极简版）与提问应对 | `docs/答辩演讲稿.md` |
 | 每日进展与待办 | `开发日志/README.md`、`开发日志/YYYY-MM-DD.md` |
 
+**版本管理与上传**：本机连不上 `github.com:443`（`git push` 报 Connection was reset），改用 `tools/push-to-github.ps1 -Token <PAT>` 走 Git Data API 上传（blob → tree → commit → 移动 main），详见 README「版本管理与上传」。
+
 **部署相关文件**：`deploy/nginx.conf`、`deploy/netguard.service`、`deploy/deploy.sh`、`deploy/README.md`。
 **数据库脚本**：`sql/netguard.sql`（建库 + 9 表 + 测试数据 + BCrypt 账号）。
 

@@ -1,6 +1,8 @@
 # NetGuard 网络故障告警监控平台
 
 > 期末综合大作业 · 题目七（★★★★☆）　Spring Boot 2.7.18 + Thymeleaf + MyBatis-Plus + MySQL 8 + Redis + RabbitMQ + Spring Security
+>
+> 仓库地址：https://github.com/mylr1luolin-cyber/netguard-alarm-platform
 
 NetGuard 面向企业网络运维场景，提供设备台账、自动巡检、故障告警、处理闭环、统计分析、规则配置的一体化监控能力：设备连续探测失败达阈值即判定离线并生成告警，按"是否重点设备"区分紧急/普通级别，通过页面通知与邮件异步推送；设备恢复在线时自动发送恢复通知并回填故障持续时长；所有告警可按时间范围检索、按设备排行、按月出图。
 
@@ -172,3 +174,23 @@ D:\企业管理
     然后 `start-mysql.bat` 起服务、导入 `sql/netguard.sql`，再登录。
     注意 `start-mysql.bat` / `tools/修复登录.bat` 现在都会先自动找 MySQL，**找不到时会停下来说明原因**，
     不会像旧版那样窗口一闪就关。
+
+## 版本管理与上传
+
+仓库：https://github.com/mylr1luolin-cyber/netguard-alarm-platform （`main` 分支）
+
+- 常规情况：在能直连 `github.com` 的机器上 `git push origin main` 即可。
+- **本机（开发机）连不上 `github.com` 的 443**（网页超时、`git push` 报 `Could not connect / Connection was reset`），
+  但 `api.github.com` 正常，因此改用 Git Data API 上传：
+
+```powershell
+# 需要一枚有 Contents: Read and write 权限的 token（用完记得撤销）
+powershell -NoProfile -ExecutionPolicy Bypass -File "tools\push-to-github.ps1" -Token <你的token>
+```
+
+脚本会读 `git ls-files` 的清单，把每个文件以 base64 上传成 blob（二进制无损），
+再建 tree、建 commit（parent 指向远端当前 HEAD）、移动 `main` 引用，最后打印提交号。
+本地改完代码先 `git add -A && git commit -m "..."`，再跑上面这条命令，远端就会与本地一致。
+
+> 注意：`tools/*.ps1` 必须是 **UTF-8 带 BOM**，否则 PowerShell 5.1 会按 ANSI 解析，中文注释把引号配对搞乱；
+> `*.bat` 则相反，必须是 **GBK(cp936) + CRLF**，否则 cmd 会把一行拆成几段报错。
