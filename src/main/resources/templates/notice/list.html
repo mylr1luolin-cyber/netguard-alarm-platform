@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('通知中心')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('notices')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar('通知中心', '系统发送的告警通知与恢复通知记录')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <div class="stat-grid">
+            <div class="stat warn">
+                <div class="label">📬 未读通知</div>
+                <div class="value" th:text="${unreadCount}">0</div>
+                <div class="foot">页面通知未读数量</div>
+            </div>
+            <div class="stat info">
+                <div class="label">📋 通知总数</div>
+                <div class="value" th:text="${page.total}">0</div>
+                <div class="foot">页面 + 邮件通道</div>
+            </div>
+            <div class="stat">
+                <div class="label">✅ 全部已读</div>
+                <div class="value" style="font-size:18px;padding-top:10px">
+                    <form th:action="@{/notices/read-all}" method="post">
+                        <button class="btn btn-primary btn-sm" type="submit">一键标记已读</button>
+                    </form>
+                </div>
+                <div class="foot">清理未读角标</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>通知记录</h3>
+                <span class="sub">按发送时间倒序</span>
+            </div>
+
+            <form class="filter-bar" th:action="@{/notices}" method="get">
+                <div class="field">
+                    <label>关键字</label>
+                    <input class="input" type="text" name="keyword" th:value="${query.keyword}"
+                           placeholder="标题 / 接收人"/>
+                </div>
+                <div class="field">
+                    <label>通知渠道</label>
+                    <select class="select" name="channel">
+                        <option value="">全部渠道</option>
+                        <option value="PAGE" th:selected="${query.channel == 'PAGE'}">页面通知</option>
+                        <option value="MAIL" th:selected="${query.channel == 'MAIL'}">邮件通知</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label>读取状态</label>
+                    <select class="select" name="readFlag">
+                        <option value="">全部</option>
+                        <option value="0" th:selected="${query.readFlag == 0}">未读</option>
+                        <option value="1" th:selected="${query.readFlag == 1}">已读</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" type="submit">查询</button>
+                <a class="btn btn-ghost" th:href="@{/notices}">重置</a>
+            </form>
+
+            <div class="table-wrap" th:if="${not #lists.isEmpty(page.records)}">
+                <table class="data">
+                    <thead>
+                    <tr>
+                        <th>发送时间</th>
+                        <th>通知标题</th>
+                        <th>渠道</th>
+                        <th>接收人</th>
+                        <th>状态</th>
+                        <th>关联告警</th>
+                        <th class="right">操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="n : ${page.records}" th:classappend="${n.readFlag == 0} ? 'unread'">
+                        <td class="mono small"
+                            th:text="${n.sendTime != null ? #temporals.format(n.sendTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</td>
+                        <td>
+                            <div class="cell-main" th:text="${n.title}">标题</div>
+                            <div class="cell-sub" th:text="${n.content}">内容</div>
+                            <div class="cell-sub text-danger" th:if="${n.status != null and n.status.name() == 'FAILED'}"
+                                 th:text="${n.errorMsg} ?: '发送失败'">失败原因</div>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${n.channel != null and n.channel.name() == 'MAIL'} ? 'b-mail' : 'b-page'"
+                                  th:text="${n.channel != null and n.channel.name() == 'MAIL'} ? '邮件' : '页面'">页面</span>
+                        </td>
+                        <td class="small" th:text="${n.receiver} ?: '—'">—</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${n.status != null and n.status.name() == 'SUCCESS' ? 'b-online' : (n.status != null and n.status.name() == 'FAILED' ? 'b-offline' : 'b-plain')}"
+                                  th:text="${n.status != null and n.status.name() == 'SUCCESS' ? '发送成功' : (n.status != null and n.status.name() == 'FAILED' ? '发送失败' : '已跳过')}">成功</span>
+                        </td>
+                        <td>
+                            <a class="small" th:if="${n.alarmId != null}" th:href="@{/alarms/{id}(id=${n.alarmId})}"
+                               th:text="'#' + ${n.alarmId}">#1</a>
+                            <span class="muted small" th:if="${n.alarmId == null}">—</span>
+                        </td>
+                        <td class="right">
+                            <form th:if="${n.readFlag == 0}" th:action="@{/notices/{id}/read(id=${n.id})}"
+                                  method="post" style="display:inline">
+                                <button class="btn btn-ghost btn-sm" type="submit">标记已读</button>
+                            </form>
+                            <span class="muted small" th:if="${n.readFlag != 0}">已读</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="empty" th:if="${#lists.isEmpty(page.records)}">
+                <div class="ico">📭</div>
+                <div class="t">暂无通知记录</div>
+                <div class="d">设备离线或恢复时，系统会在这里记录通知</div>
+            </div>
+
+            <div class="pager" th:if="${page.pages > 1}">
+                <span th:text="'第 ' + ${page.current} + ' / ' + ${page.pages} + ' 页，共 ' + ${page.total} + ' 条'">分页</span>
+                <div class="spacer"></div>
+                <a th:classappend="${page.current <= 1} ? 'disabled'"
+                   th:href="@{/notices(page=${page.current - 1}, size=${page.size}, keyword=${query.keyword}, channel=${query.channel}, readFlag=${query.readFlag})}">上一页</a>
+                <a th:each="i : ${#numbers.sequence(1, page.pages)}"
+                   th:if="${i >= page.current - 2 and i <= page.current + 2}"
+                   th:classappend="${i == page.current} ? 'active'"
+                   th:href="@{/notices(page=${i}, size=${page.size}, keyword=${query.keyword}, channel=${query.channel}, readFlag=${query.readFlag})}"
+                   th:text="${i}">1</a>
+                <a th:classappend="${page.current >= page.pages} ? 'disabled'"
+                   th:href="@{/notices(page=${page.current + 1}, size=${page.size}, keyword=${query.keyword}, channel=${query.channel}, readFlag=${query.readFlag})}">下一页</a>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3307/netguard_test?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: netguard
+    password: netguard123
+    hikari:
+      maximum-pool-size: 8
+      pool-name: NetGuardTestHikari
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 1
+    timeout: 2000ms
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+  mail:
+    host: smtp.example.com
+    port: 465
+    username: alert@example.com
+    password: your-smtp-password
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+
+app:
+  cache-mode: redis
+  mq:
+    enabled: true
+  mail:
+    enabled: false
+  monitor:
+    default-interval: 10
+
+logging:
+  level:
+    com.netguard: info

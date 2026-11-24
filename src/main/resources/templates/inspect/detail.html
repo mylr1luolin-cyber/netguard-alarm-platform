@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('巡检明细')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('inspects')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar('巡检明细', '本次巡检中每台设备的探测结果与耗时')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <div class="card">
+            <div class="card-head">
+                <h3 th:text="'巡检批次 #' + ${log.id}">巡检批次</h3>
+                <span class="badge"
+                      th:classappend="${log.triggerType != null and log.triggerType.name() == 'MANUAL'} ? 'b-page' : 'b-plain'"
+                      th:text="${log.triggerType != null and log.triggerType.name() == 'MANUAL'} ? '手动触发' : '定时巡检'">定时巡检</span>
+                <div class="spacer"></div>
+                <a class="btn btn-ghost btn-sm" th:href="@{/inspects}">返回列表</a>
+            </div>
+            <div class="card-body">
+                <div class="desc">
+                    <div class="item">
+                        <div class="k">开始时间</div>
+                        <div class="v mono"
+                             th:text="${log.startTime != null ? #temporals.format(log.startTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</div>
+                    </div>
+                    <div class="item">
+                        <div class="k">结束时间</div>
+                        <div class="v mono"
+                             th:text="${log.endTime != null ? #temporals.format(log.endTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</div>
+                    </div>
+                    <div class="item">
+                        <div class="k">设备总数</div>
+                        <div class="v" th:text="${log.totalCount}">0</div>
+                    </div>
+                    <div class="item">
+                        <div class="k">在线设备</div>
+                        <div class="v text-success" th:text="${log.onlineCount}">0</div>
+                    </div>
+                    <div class="item">
+                        <div class="k">离线设备</div>
+                        <div class="v text-danger" th:text="${log.offlineCount}">0</div>
+                    </div>
+                    <div class="item">
+                        <div class="k">状态变化</div>
+                        <div class="v" th:text="${log.changeCount} + ' 台'">0 台</div>
+                    </div>
+                    <div class="item">
+                        <div class="k">总耗时</div>
+                        <div class="v" th:text="${log.costMs} + ' ms'">0 ms</div>
+                    </div>
+                    <div class="item">
+                        <div class="k">执行人</div>
+                        <div class="v" th:text="${log.operator} ?: '系统'">系统</div>
+                    </div>
+                    <div class="item full">
+                        <div class="k">巡检参数</div>
+                        <div class="v" th:text="${log.remark} ?: '—'">—</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>设备探测明细</h3>
+                <span class="sub" th:text="'共 ' + ${#lists.size(details)} + ' 条'">共 0 条</span>
+            </div>
+            <div class="table-wrap" th:if="${not #lists.isEmpty(details)}">
+                <table class="data">
+                    <thead>
+                    <tr>
+                        <th>设备名称</th>
+                        <th>IP 地址</th>
+                        <th>探测方式</th>
+                        <th>结果</th>
+                        <th>耗时</th>
+                        <th>探测时间</th>
+                        <th>说明</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="d : ${details}">
+                        <td class="cell-main" th:text="${d.deviceName}">设备</td>
+                        <td class="mono small" th:text="${d.deviceIp}">IP</td>
+                        <td>
+                            <span class="badge b-plain"
+                                  th:text="${d.probeType != null and d.probeType == 'TCP'} ? 'TCP 端口' : 'ICMP Ping'">TCP</span>
+                        </td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${d.result != null and d.result.name() == 'SUCCESS'} ? 'b-online' : 'b-offline'"
+                                  th:text="${d.result != null and d.result.name() == 'SUCCESS'} ? '连通' : '失败'">连通</span>
+                        </td>
+                        <td class="small" th:text="${d.latencyMs != null ? d.latencyMs + ' ms' : '—'}">—</td>
+                        <td class="mono small"
+                            th:text="${d.checkTime != null ? #temporals.format(d.checkTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</td>
+                        <td class="small" th:text="${d.message} ?: '—'">—</td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty" th:if="${#lists.isEmpty(details)}">
+                <div class="ico">📭</div>
+                <div class="t">没有探测明细</div>
+                <div class="d">该批次可能没有登记任何设备</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

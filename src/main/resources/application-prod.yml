@@ -1,0 +1,69 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/netguard?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: netguard
+    password: ${MYSQL_PASSWORD:netguard123}
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 30
+      connection-timeout: 10000
+      pool-name: NetGuardProdHikari
+  redis:
+    host: ${REDIS_HOST:127.0.0.1}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    database: 0
+    timeout: 3000ms
+    lettuce:
+      pool:
+        max-active: 32
+        max-idle: 16
+        min-idle: 4
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:netguard}
+    password: ${RABBITMQ_PASSWORD:netguard123}
+    virtual-host: ${RABBITMQ_VHOST:/}
+    listener:
+      simple:
+        acknowledge-mode: auto
+        concurrency: 2
+        max-concurrency: 8
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 3000ms
+  mail:
+    host: ${MAIL_HOST:smtp.example.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:alert@example.com}
+    password: ${MAIL_PASSWORD:}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+
+app:
+  cache-mode: redis
+  mq:
+    enabled: true
+  mail:
+    enabled: true
+  upload:
+    dir: /opt/netguard/uploads
+  monitor:
+    default-interval: 5
+    default-timeout: 2000
+    default-fail-threshold: 2
+
+logging:
+  file:
+    name: /opt/netguard/logs/netguard.log
+  level:
+    root: warn
+    com.netguard: info

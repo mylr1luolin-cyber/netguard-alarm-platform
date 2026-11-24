@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('巡检记录')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('inspects')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar('巡检记录', '定时巡检全部设备的连通性，记录每次探测结果与状态变化')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <div class="stat-grid">
+            <div class="stat ok" th:if="${latestLog != null}">
+                <div class="label">✅ 最近一次在线</div>
+                <div class="value" th:text="${latestLog.onlineCount}">0</div>
+                <div class="foot" th:text="'共 ' + ${latestLog.totalCount} + ' 台设备'">共 0 台设备</div>
+            </div>
+            <div class="stat bad" th:if="${latestLog != null}">
+                <div class="label">⛔ 最近一次离线</div>
+                <div class="value" th:text="${latestLog.offlineCount}">0</div>
+                <div class="foot" th:text="'状态变化 ' + ${latestLog.changeCount} + ' 台'">状态变化 0 台</div>
+            </div>
+            <div class="stat info">
+                <div class="label">⚡ 最近耗时</div>
+                <div class="value" th:text="${latestLog != null ? latestLog.costMs + ' ms' : '—'}">—</div>
+                <div class="foot"
+                      th:text="${latestLog != null ? '执行于 ' + latestLog.startTime : '尚未执行巡检'}">尚未执行巡检</div>
+            </div>
+            <div class="stat" sec:authorize="hasRole('ADMIN')">
+                <div class="label">🚀 手动巡检</div>
+                <form th:action="@{/inspects/run}" method="post" style="margin-top:8px">
+                    <button class="btn btn-primary btn-sm" type="submit">立即执行一次</button>
+                </form>
+                <div class="foot">管理员可手动触发全量巡检</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>巡检批次</h3>
+                <span class="sub">按开始时间倒序</span>
+            </div>
+
+            <div class="table-wrap" th:if="${not #lists.isEmpty(page.records)}">
+                <table class="data">
+                    <thead>
+                    <tr>
+                        <th>批次号</th>
+                        <th>触发方式</th>
+                        <th>开始时间</th>
+                        <th>设备总数</th>
+                        <th>在线</th>
+                        <th>离线</th>
+                        <th>状态变化</th>
+                        <th>耗时</th>
+                        <th>执行人</th>
+                        <th class="right">操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="l : ${page.records}" data-href="@{/inspects/{id}(id=${l.id})}">
+                        <td class="mono" th:text="'#' + ${l.id}">#1</td>
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${l.triggerType != null and l.triggerType.name() == 'MANUAL'} ? 'b-page' : 'b-plain'"
+                                  th:text="${l.triggerType != null and l.triggerType.name() == 'MANUAL'} ? '手动触发' : '定时巡检'">定时巡检</span>
+                        </td>
+                        <td class="mono small"
+                            th:text="${l.startTime != null ? #temporals.format(l.startTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</td>
+                        <td th:text="${l.totalCount}">0</td>
+                        <td class="text-success" th:text="${l.onlineCount}">0</td>
+                        <td class="text-danger" th:text="${l.offlineCount}">0</td>
+                        <td>
+                            <span class="badge b-warn" th:if="${l.changeCount != null and l.changeCount > 0}"
+                                  th:text="${l.changeCount} + ' 台'">0 台</span>
+                            <span class="muted small" th:if="${l.changeCount == null or l.changeCount == 0}">无变化</span>
+                        </td>
+                        <td class="small" th:text="${l.costMs} + ' ms'">0 ms</td>
+                        <td class="small" th:text="${l.operator} ?: '系统'">系统</td>
+                        <td class="right">
+                            <a class="btn btn-ghost btn-sm" th:href="@{/inspects/{id}(id=${l.id})}">明细</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="empty" th:if="${#lists.isEmpty(page.records)}">
+                <div class="ico">🕒</div>
+                <div class="t">还没有巡检记录</div>
+                <div class="d">系统启动约 20 秒后会自动执行第一次巡检，管理员也可点击上方按钮立即执行</div>
+            </div>
+
+            <div class="pager" th:if="${page.pages > 1}">
+                <span th:text="'第 ' + ${page.current} + ' / ' + ${page.pages} + ' 页，共 ' + ${page.total} + ' 条'">分页</span>
+                <div class="spacer"></div>
+                <a th:classappend="${page.current <= 1} ? 'disabled'"
+                   th:href="@{/inspects(page=${page.current - 1}, size=${page.size})}">上一页</a>
+                <a th:each="i : ${#numbers.sequence(1, page.pages)}"
+                   th:if="${i >= page.current - 2 and i <= page.current + 2}"
+                   th:classappend="${i == page.current} ? 'active'"
+                   th:href="@{/inspects(page=${i}, size=${page.size})}"
+                   th:text="${i}">1</a>
+                <a th:classappend="${page.current >= page.pages} ? 'disabled'"
+                   th:href="@{/inspects(page=${page.current + 1}, size=${page.size})}">下一页</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>当前离线设备</h3>
+                <span class="sub">最近一次巡检判定为离线的设备</span>
+            </div>
+            <div class="table-wrap" th:if="${not #lists.isEmpty(offlineDevices)}">
+                <table class="data">
+                    <thead>
+                    <tr>
+                        <th>设备</th>
+                        <th>IP / 端口</th>
+                        <th>最近巡检</th>
+                        <th>离线次数</th>
+                        <th class="right">操作</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="d : ${offlineDevices}">
+                        <td>
+                            <div class="cell-main">
+                                <span class="badge b-core" th:if="${d.coreFlag == 1}">重点</span>
+                                <span th:text="${d.deviceName}">设备</span>
+                            </div>
+                            <div class="cell-sub" th:text="${d.deviceCode}">编号</div>
+                        </td>
+                        <td class="mono small"
+                            th:text="${d.ipAddress + ' : ' + (d.monitorPort == null ? 0 : d.monitorPort)}">IP</td>
+                        <td class="small"
+                            th:text="${d.lastCheckTime != null ? #temporals.format(d.lastCheckTime, 'MM-dd HH:mm:ss') : '—'}">—</td>
+                        <td class="text-danger" th:text="${d.offlineCount}">0</td>
+                        <td class="right">
+                            <form th:action="@{/devices/{id}/check(id=${d.id})}" method="post" style="display:inline">
+                                <button class="btn btn-ghost btn-sm" type="submit">立即探测</button>
+                            </form>
+                            <a class="btn btn-ghost btn-sm" th:href="@{/alarms(keyword=${d.deviceName})}">相关告警</a>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty" th:if="${#lists.isEmpty(offlineDevices)}">
+                <div class="ico">🎉</div>
+                <div class="t">全部设备在线</div>
+                <div class="d">当前没有处于离线状态的设备</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

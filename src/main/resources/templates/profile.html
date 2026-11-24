@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('个人中心')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('profile')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar('个人中心', '维护个人资料与登录密码')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <div class="grid-2">
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>账号信息</h3>
+                    <span class="badge b-core" th:text="${user.role != null and user.role.name() == 'ADMIN'} ? '系统管理员' : '运维人员'">运维人员</span>
+                </div>
+                <div class="card-body">
+                    <div class="row" style="gap:16px;align-items:center;margin-bottom:18px">
+                        <div class="avatar-lg"
+                             th:text="${user.realName != null and !#strings.isEmpty(user.realName) ? #strings.substring(user.realName, 0, 1) : 'U'}">U</div>
+                        <div>
+                            <div class="bold" style="font-size:18px" th:text="${user.realName}">姓名</div>
+                            <div class="muted small" th:text="'@' + ${user.username}">@username</div>
+                        </div>
+                    </div>
+                    <div class="desc">
+                        <div class="item">
+                            <div class="k">登录账号</div>
+                            <div class="v mono" th:text="${user.username}">admin</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">角色权限</div>
+                            <div class="v" th:text="${user.role != null ? user.role.desc : '—'}">管理员</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">邮箱</div>
+                            <div class="v" th:text="${user.email} ?: '未填写'">—</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">手机号</div>
+                            <div class="v" th:text="${user.phone} ?: '未填写'">—</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">最近登录</div>
+                            <div class="v mono"
+                                 th:text="${user.lastLoginTime != null ? #temporals.format(user.lastLoginTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">账号状态</div>
+                            <div class="v">
+                                <span class="badge b-online" th:if="${user.status == 1}">正常</span>
+                                <span class="badge b-offline" th:if="${user.status != 1}">已禁用</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-16" sec:authorize="hasRole('ADMIN')">
+                        <div class="k muted small">管理员权限提示</div>
+                        <div class="hint">你是系统管理员：可维护设备类型、告警规则、手动执行巡检，并可确认全部告警。</div>
+                    </div>
+                    <div class="mt-16" sec:authorize="!hasRole('ADMIN')">
+                        <div class="k muted small">运维权限提示</div>
+                        <div class="hint">你是运维人员：可查看设备状态、确认并处理告警，但不能修改设备与规则配置。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card">
+                    <div class="card-head">
+                        <h3>修改资料</h3>
+                        <span class="sub">姓名、邮箱与手机号</span>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/profile}" method="post" th:object="${profileForm}">
+                            <div class="form-grid">
+                                <div class="field full">
+                                    <label class="req" for="realName">姓名</label>
+                                    <input class="input" id="realName" type="text" th:field="*{realName}"/>
+                                    <div class="field-error" th:if="${#fields.hasErrors('realName')}"
+                                         th:errors="*{realName}"></div>
+                                </div>
+                                <div class="field">
+                                    <label for="email">邮箱</label>
+                                    <input class="input" id="email" type="email" th:field="*{email}"
+                                           placeholder="用于接收告警邮件"/>
+                                    <div class="field-error" th:if="${#fields.hasErrors('email')}"
+                                         th:errors="*{email}"></div>
+                                </div>
+                                <div class="field">
+                                    <label for="phone">手机号</label>
+                                    <input class="input" id="phone" type="text" th:field="*{phone}"
+                                           placeholder="11 位手机号"/>
+                                    <div class="field-error" th:if="${#fields.hasErrors('phone')}"
+                                         th:errors="*{phone}"></div>
+                                </div>
+                            </div>
+                            <div class="form-actions mt-16">
+                                <button class="btn btn-primary" type="submit">保存资料</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>修改密码</h3>
+                        <span class="sub">密码使用 BCrypt 加密存储</span>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/profile/password}" method="post" th:object="${passwordForm}">
+                            <div class="form-grid">
+                                <div class="field full">
+                                    <label class="req" for="oldPassword">原密码</label>
+                                    <input class="input" id="oldPassword" type="password" th:field="*{oldPassword}"
+                                           autocomplete="current-password"/>
+                                    <div class="field-error" th:if="${#fields.hasErrors('oldPassword')}"
+                                         th:errors="*{oldPassword}"></div>
+                                </div>
+                                <div class="field">
+                                    <label class="req" for="newPassword">新密码</label>
+                                    <input class="input" id="newPassword" type="password" th:field="*{newPassword}"
+                                           autocomplete="new-password"/>
+                                    <div class="hint">6-32 位，建议字母 + 数字组合</div>
+                                    <div class="field-error" th:if="${#fields.hasErrors('newPassword')}"
+                                         th:errors="*{newPassword}"></div>
+                                </div>
+                                <div class="field">
+                                    <label class="req" for="confirmPassword">确认新密码</label>
+                                    <input class="input" id="confirmPassword" type="password"
+                                           th:field="*{confirmPassword}" autocomplete="new-password"/>
+                                    <div class="field-error" th:if="${#fields.hasErrors('confirmPassword')}"
+                                         th:errors="*{confirmPassword}"></div>
+                                </div>
+                            </div>
+                            <div class="form-actions mt-16">
+                                <button class="btn btn-primary" type="submit">更新密码</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

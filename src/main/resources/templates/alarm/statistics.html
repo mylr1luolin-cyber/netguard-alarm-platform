@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('告警统计')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('statistics')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar('告警统计', '按时间范围统计告警趋势、级别分布与设备故障次数排行')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <div class="card">
+            <div class="card-head">
+                <h3>统计范围</h3>
+                <span class="sub">默认本月，可自定义起止日期</span>
+            </div>
+            <form class="filter-bar" th:action="@{/alarms/statistics}" method="get">
+                <div class="field">
+                    <label>开始日期</label>
+                    <input class="input" type="date" name="startDate" th:value="${startDate}"/>
+                </div>
+                <div class="field">
+                    <label>结束日期</label>
+                    <input class="input" type="date" name="endDate" th:value="${endDate}"/>
+                </div>
+                <button class="btn btn-primary" type="submit">统计</button>
+                <a class="btn btn-ghost" th:href="@{/alarms}">返回告警列表</a>
+            </form>
+        </div>
+
+        <div class="stat-grid">
+            <div class="stat">
+                <div class="label">📊 区间告警总数</div>
+                <div class="value" th:text="${totalAlarms}">0</div>
+                <div class="foot">含离线告警与恢复通知</div>
+            </div>
+            <div class="stat warn">
+                <div class="label">🔔 待处理</div>
+                <div class="value" th:text="${pendingCount}">0</div>
+                <div class="foot">当前仍待确认的告警</div>
+            </div>
+            <div class="stat ok">
+                <div class="label">⏱ 平均处理时长</div>
+                <div class="value" th:text="${avgDuration} + ' 分钟'">0 分钟</div>
+                <div class="foot">从告警产生到恢复在线</div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="card">
+                <div class="card-head">
+                    <h3>每日告警趋势</h3>
+                    <span class="sub">统计区间内每天的告警数量</span>
+                </div>
+                <div id="dailyChart" style="width:100%;height:320px"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <h3>告警级别分布</h3>
+                    <span class="sub">紧急 / 普通</span>
+                </div>
+                <div id="levelChart" style="width:100%;height:320px"></div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="card">
+                <div class="card-head">
+                    <h3>近 30 天告警趋势</h3>
+                    <span class="sub">按日汇总，不受上方筛选影响</span>
+                </div>
+                <div id="monthChart" style="width:100%;height:300px"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-head">
+                <h3>设备故障次数排行</h3>
+                <span class="sub">统计区间内故障次数最多的设备 TOP10</span>
+            </div>
+            <div class="table-wrap" th:if="${not #lists.isEmpty(faultRanks)}">
+                <table class="data">
+                    <thead>
+                    <tr>
+                        <th style="width:70px">排名</th>
+                        <th>设备</th>
+                        <th>IP 地址</th>
+                        <th>故障次数</th>
+                        <th>紧急告警</th>
+                        <th>累计时长(分钟)</th>
+                        <th>故障占比</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="r, s : ${faultRanks}">
+                        <td>
+                            <span class="badge"
+                                  th:classappend="${s.count <= 3} ? 'b-urgent' : 'b-plain'"
+                                  th:text="'TOP' + ${s.count}">TOP1</span>
+                        </td>
+                        <td class="cell-main" th:text="${r.deviceName}">设备</td>
+                        <td class="mono small" th:text="${r.deviceIp}">IP</td>
+                        <td class="bold" th:text="${r.faultCount} + ' 次'">0 次</td>
+                        <td class="text-danger"
+                            th:text="${r.urgentCount} + ' 次'">0 次</td>
+                        <td class="small" th:text="${r.totalMinutes} ?: 0">0</td>
+                        <td style="min-width:160px">
+                            <div class="meter">
+                                <div class="meter-bar"
+                                     th:style="'width:' + ${totalAlarms > 0 ? (r.faultCount * 100 / totalAlarms) : 0} + '%'"></div>
+                            </div>
+                            <span class="small muted"
+                                  th:text="${totalAlarms > 0 ? (r.faultCount * 100 / totalAlarms) : 0} + '%'">0%</span>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="empty" th:if="${#lists.isEmpty(faultRanks)}">
+                <div class="ico">📉</div>
+                <div class="t">统计区间内没有故障记录</div>
+                <div class="d">设备运行良好，或该时间段尚未开始巡检</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/echarts.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    var dailyTrend = /*[[${dailyTrend}]]*/ [];
+    var levelStats = /*[[${levelStats}]]*/ [];
+    var monthTrend = /*[[${monthTrend}]]*/ [];
+
+    (function () {
+        var PALETTE = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9', '#64748b'];
+
+        function names(list) {
+            return (list || []).map(function (i) { return i.name || i.label || ''; });
+        }
+        function values(list) {
+            return (list || []).map(function (i) { return i.value == null ? 0 : i.value; });
+        }
+
+        var daily = echarts.init(document.getElementById('dailyChart'));
+        daily.setOption({
+            tooltip: {trigger: 'axis'},
+            grid: {left: 40, right: 20, top: 20, bottom: 40},
+            xAxis: {type: 'category', data: names(dailyTrend), axisLine: {lineStyle: {color: '#cbd5e1'}}, axisLabel: {color: '#64748b'}},
+            yAxis: {type: 'value', minInterval: 1, splitLine: {lineStyle: {color: '#eef2f7'}}, axisLabel: {color: '#64748b'}},
+            series: [{
+                name: '告警数', type: 'line', smooth: true, symbolSize: 6,
+                data: values(dailyTrend),
+                itemStyle: {color: '#2563eb'}, lineStyle: {width: 3},
+                areaStyle: {color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                    {offset: 0, color: 'rgba(37,99,235,.28)'},
+                    {offset: 1, color: 'rgba(37,99,235,.02)'}])}
+            }]
+        });
+
+        var level = echarts.init(document.getElementById('levelChart'));
+        var levelColors = {'紧急': '#ef4444', '普通': '#0ea5e9'};
+        level.setOption({
+            tooltip: {trigger: 'item', formatter: '{b}: {c} ({d}%)'},
+            legend: {bottom: 0, icon: 'circle'},
+            series: [{
+                type: 'pie', radius: ['46%', '70%'], center: ['50%', '44%'],
+                avoidLabelOverlap: true,
+                itemStyle: {borderColor: '#fff', borderWidth: 3, borderRadius: 6},
+                label: {show: false},
+                data: (levelStats || []).map(function (i, idx) {
+                    return {name: i.name || i.label || '未知', value: i.value || 0,
+                        itemStyle: {color: levelColors[i.name] || PALETTE[idx % PALETTE.length]}};
+                })
+            }]
+        });
+
+        var month = echarts.init(document.getElementById('monthChart'));
+        month.setOption({
+            tooltip: {trigger: 'axis'},
+            grid: {left: 40, right: 20, top: 20, bottom: 40},
+            xAxis: {type: 'category', data: names(monthTrend), axisLine: {lineStyle: {color: '#cbd5e1'}}, axisLabel: {color: '#64748b'}},
+            yAxis: {type: 'value', minInterval: 1, splitLine: {lineStyle: {color: '#eef2f7'}}, axisLabel: {color: '#64748b'}},
+            series: [{
+                name: '告警数', type: 'bar', barWidth: '42%',
+                data: values(monthTrend),
+                itemStyle: {borderRadius: [6, 6, 0, 0],
+                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                        {offset: 0, color: '#60a5fa'}, {offset: 1, color: '#2563eb'}])}
+            }]
+        });
+
+        window.addEventListener('resize', function () {
+            daily.resize();
+            level.resize();
+            month.resize();
+        });
+    })();
+    /*]]>*/
+</script>
+</body>
+</html>

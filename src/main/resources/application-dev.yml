@@ -1,0 +1,66 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/netguard?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: root
+    password: 123456
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 15
+      connection-timeout: 10000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: NetGuardHikari
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    database: 0
+    timeout: 1500ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: 1500ms
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5672
+    username: guest
+    password: guest
+    virtual-host: /
+    listener:
+      simple:
+        acknowledge-mode: auto
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 2000ms
+  mail:
+    host: smtp.example.com
+    port: 465
+    username: alert@example.com
+    password: your-smtp-password
+    default-encoding: UTF-8
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
+          starttls:
+            enable: false
+
+# 开发环境：本机未部署 Redis / RabbitMQ / SMTP 时，
+# 缓存自动降级内存、MQ 降级为本地同步通知、邮件跳过发送，保证项目可以直接跑通。
+app:
+  cache-mode: redis
+  mq:
+    enabled: false
+  mail:
+    enabled: false
+  upload:
+    dir: ./uploads
+
+logging:
+  level:
+    com.netguard: debug

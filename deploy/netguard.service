@@ -1,0 +1,81 @@
+# ============================================================================
+# NetGuard 网络故障告警监控平台 —— systemd 托管单元
+# ----------------------------------------------------------------------------
+# 安装位置：/etc/systemd/system/netguard.service
+# 安装步骤：
+#   sudo cp deploy/netguard.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now netguard
+# 查看状态/日志：
+#   systemctl status netguard
+#   journalctl -u netguard -f
+# ============================================================================
+
+[Unit]
+# 便于 systemctl status / journalctl 中辨认服务
+Description=NetGuard 网络故障告警监控平台 (Spring Boot, prod)
+# 文档地址：随包放在 /opt/netguard/README.md，便于运维就地查看
+Documentation=file:/opt/netguard/README.md
+# network.target：保证网卡已就绪；mysql.service：尽量等本机 MySQL 起来再启动应用
+# 注意：不同发行版的 MySQL 单元名可能是 mysqld.service / mysql.service，
+#       若你机器上不存在 mysql.service，systemd 只是告警，不会阻止启动。
+After=network.target mysql.service
+# 非强制依赖：配置了 Wants 时 mysql 启动失败不影响本服务启动（应用自身有重连能力）
+Wants=mysql.service
+
+[Service]
+# simple：ExecStart 启动的进程即主进程，systemd 直接跟踪其生命周期
+Type=simple
+
+# 专用低权限账号运行（部署手册中创建：useradd -r -s /sbin/nologin netguard）
+# 不要用 root 跑 Java 进程，降低被上传漏洞利用后的影响面
+User=netguard
+Group=netguard
+
+# 工作目录决定两件事：
+#   1) 相对路径 ./uploads、./logs 以此为基准 → /opt/netguard/uploads、/opt/netguard/logs；
+#   2) 应用读取 classpath 之外的相对配置。
+WorkingDirectory=/opt/netguard
+
+# 生产环境变量文件（KEY=VALUE 每行一条，权限 600，属主 netguard）。
+# 变量清单见 docs/09-部署运维手册.md 的 .env 表格；缺失时服务会启动失败，
+# 若希望“文件不存在也能启动”，把下面一行改成 EnvironmentFile=-/opt/netguard/.env
+EnvironmentFile=/opt/netguard/.env
+
+# JVM 参数说明：
+#   -Xms512m -Xmx1024m    堆初始/最大值；课程演示规模（200 台设备）足够，
+#                          生产可按内存调大（建议不超过物理内存 50%）
+#   -Dfile.encoding=UTF-8 关键：否则 Linux 下中文日志/文件名可能乱码
+#   --spring.profiles.active=prod 加载 application-prod.yml（环境变量注入连接信息）
+# 说明：java 路径若不在 /usr/bin/java（如 SDKMAN 安装），改成绝对路径；
+#       也可用 Environment=JAVA_HOME=/usr/lib/jvm/java-17-openjdk 配合启动脚本。
+ExecStart=/usr/bin/java -Xms512m -Xmx1024m -Dfile.encoding=UTF-8 -jar /opt/netguard/netguard.jar --spring.profiles.active=prod
+
+# Spring Boot 收到 SIGTERM 会优雅关闭（关闭线程池、Hikari、Rabbit 连接）。
+# 若进程以 143（128+15）退出，代表被正常停止而非异常崩溃，因此视为成功退出，
+# 否则 systemctl stop 后服务会被判定为 failed，影响后续 Restart 策略。
+SuccessExitStatus=143
+
+# 崩溃自愈：任何原因退出都拉起，10 秒后再试，避免端口/数据库未就绪时疯狂重启
+Restart=always
+RestartSec=10
+# 停止时最多等 60 秒让 Spring Boot 完成优雅关闭，超时再 SIGKILL
+TimeoutStopSec=60
+
+# 日志统一交给 journald，用 journalctl -u netguard 查看；
+# 若希望同时落盘，应用侧 logback-spring.xml 已写入 /opt/netguard/logs/netguard.log。
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=netguard
+
+# 生产环境安全加固（可选，按需开启）：
+# NoNewPrivileges=true
+# PrivateTmp=true
+# ProtectSystem=full
+# ReadWritePaths=/opt/netguard/uploads /opt/netguard/logs
+# 文件句柄数：巡检并发探测 + 大量 HTTP 连接时避免 "Too many open files"
+LimitNOFILE=65535
+
+[Install]
+# 开机自启目标：multi-user.target 即普通的命令行多用户运行级别
+WantedBy=multi-user.target

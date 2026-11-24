@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.netguard.mapper.DeviceMapper">
+
+    <!-- 设备分页查询：设备表 LEFT JOIN 设备类型表，条件全部使用 #{} 占位防注入 -->
+    <select id="selectDevicePage" resultType="com.netguard.vo.DeviceVO">
+        SELECT d.id,
+               d.device_code,
+               d.device_name,
+               d.ip_address,
+               d.device_type_id,
+               d.monitor_port,
+               d.location,
+               d.core_flag,
+               d.status,
+               d.last_check_time,
+               d.last_online_time,
+               d.offline_count,
+               d.image_url,
+               d.remark,
+               d.create_by,
+               d.create_time,
+               d.update_time,
+               t.type_name  AS typeName,
+               t.type_code  AS typeCode,
+               t.icon       AS typeIcon,
+               (SELECT COUNT(1) FROM alarm_record a
+                 WHERE a.device_id = d.id AND a.alarm_type = 'OFFLINE') AS alarmCount
+        FROM device d
+        LEFT JOIN device_type t ON d.device_type_id = t.id
+        <where>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND (d.device_name LIKE CONCAT('%', #{q.keyword}, '%')
+                     OR d.device_code LIKE CONCAT('%', #{q.keyword}, '%')
+                     OR d.ip_address LIKE CONCAT('%', #{q.keyword}, '%'))
+            </if>
+            <if test="q.typeId != null">
+                AND d.device_type_id = #{q.typeId}
+            </if>
+            <if test="q.status != null and q.status != ''">
+                AND d.status = #{q.status}
+            </if>
+            <if test="q.coreFlag != null">
+                AND d.core_flag = #{q.coreFlag}
+            </if>
+        </where>
+        <choose>
+            <when test="q.sortField eq 'offline_count'">
+                ORDER BY d.offline_count
+                <choose>
+                    <when test="q.sortOrder eq 'asc'">ASC</when>
+                    <otherwise>DESC</otherwise>
+                </choose>
+            </when>
+            <when test="q.sortField eq 'last_check_time'">
+                ORDER BY d.last_check_time
+                <choose>
+                    <when test="q.sortOrder eq 'asc'">ASC</when>
+                    <otherwise>DESC</otherwise>
+                </choose>
+            </when>
+            <when test="q.sortField eq 'device_name'">
+                ORDER BY d.device_name
+                <choose>
+                    <when test="q.sortOrder eq 'desc'">DESC</when>
+                    <otherwise>ASC</otherwise>
+                </choose>
+            </when>
+            <otherwise>
+                ORDER BY d.core_flag DESC, d.status DESC, d.id ASC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 设备故障次数排行：按设备聚合离线告警次数、紧急次数与累计时长 -->
+    <select id="selectFaultRank" resultType="com.netguard.vo.DeviceFaultRankVO">
+        SELECT a.device_id                          AS deviceId,
+               MAX(a.device_name)                   AS deviceName,
+               MAX(a.device_ip)                     AS deviceIp,
+               COUNT(1)                             AS faultCount,
+               SUM(CASE WHEN a.alarm_level = 'URGENT' THEN 1 ELSE 0 END) AS urgentCount,
+               IFNULL(SUM(a.duration_minutes), 0)   AS totalMinutes
+        FROM alarm_record a
+        WHERE a.alarm_type = 'OFFLINE'
+        <if test="start != null">
+            AND a.alarm_time &gt;= #{start}
+        </if>
+        <if test="end != null">
+            AND a.alarm_time &lt; #{end}
+        </if>
+        GROUP BY a.device_id
+        ORDER BY faultCount DESC, urgentCount DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 按设备类型统计，供首页饼图 -->
+    <select id="countGroupByType" resultType="com.netguard.vo.CountItemVO">
+        SELECT IFNULL(t.type_name, '未分类') AS name, COUNT(d.id) AS value
+        FROM device d
+        LEFT JOIN device_type t ON d.device_type_id = t.id
+        GROUP BY t.type_name
+        ORDER BY value DESC
+    </select>
+
+    <!-- 按在线状态统计，供首页环形图 -->
+    <select id="countGroupByStatus" resultType="com.netguard.vo.CountItemVO">
+        SELECT status AS name, COUNT(1) AS value
+        FROM device
+        GROUP BY status
+    </select>
+
+    <select id="countByTypeId" resultType="long">
+        SELECT COUNT(1) FROM device WHERE device_type_id = #{typeId}
+    </select>
+
+</mapper>

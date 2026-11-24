@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('运行总览')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('dashboard')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar('运行总览', '实时监控网络设备运行状态、告警态势与巡检进度')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <!-- 关键指标 -->
+        <div class="stat-grid">
+            <div class="stat info">
+                <div class="label">📦 设备总数</div>
+                <div class="value" th:text="${summary.deviceTotal}">0</div>
+                <div class="foot" th:text="'覆盖 ' + ${#lists.size(deviceTypes)} + ' 类网络设备'">覆盖 0 类</div>
+            </div>
+            <div class="stat ok">
+                <div class="label">✅ 在线设备</div>
+                <div class="value" th:text="${summary.onlineCount}">0</div>
+                <div class="foot" th:text="'在线率 ' + ${summary.onlineRate} + '%'">在线率 0%</div>
+            </div>
+            <div class="stat bad">
+                <div class="label">⚠️ 离线设备</div>
+                <div class="value" th:text="${summary.offlineCount}">0</div>
+                <div class="foot" th:text="'未知状态 ' + ${summary.unknownCount} + ' 台'">未知 0 台</div>
+            </div>
+            <div class="stat warn">
+                <div class="label">🔔 待处理告警</div>
+                <div class="value" th:text="${summary.pendingAlarms}">0</div>
+                <div class="foot" th:text="'今日告警 ' + ${summary.todayAlarms} + ' 条'">今日 0 条</div>
+            </div>
+            <div class="stat">
+                <div class="label">📅 本月告警</div>
+                <div class="value" th:text="${summary.monthAlarms}">0</div>
+                <div class="foot" th:text="'其中紧急 ' + ${summary.monthUrgentAlarms} + ' 条'">紧急 0 条</div>
+            </div>
+            <div class="stat">
+                <div class="label">⏱ 平均处理时长</div>
+                <div class="value" th:text="${summary.avgDurationMinutes != null ? summary.avgDurationMinutes + ' 分' : '—'}">—</div>
+                <div class="foot">从告警产生到恢复在线</div>
+            </div>
+        </div>
+
+        <!-- 图表区 -->
+        <div class="chart-grid mb-16">
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>近 30 天告警趋势</h3>
+                    <span class="sub">按天统计设备离线次数</span>
+                </div>
+                <div class="card-body">
+                    <div id="trendChart" class="chart"></div>
+                </div>
+            </div>
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>设备在线状态分布</h3>
+                    <span class="sub">实时巡检结果</span>
+                </div>
+                <div class="card-body">
+                    <div id="statusChart" class="chart"></div>
+                </div>
+            </div>
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>设备类型分布</h3>
+                    <span class="sub">按类型统计设备数量</span>
+                </div>
+                <div class="card-body">
+                    <div id="typeChart" class="chart"></div>
+                </div>
+            </div>
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>告警级别分布</h3>
+                    <span class="sub">紧急 / 普通</span>
+                </div>
+                <div class="card-body">
+                    <div id="levelChart" class="chart"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <!-- 最新告警 -->
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>最新告警</h3>
+                    <div class="spacer"></div>
+                    <a class="btn btn-ghost btn-sm" th:href="@{/alarms}">查看全部</a>
+                </div>
+                <div class="card-body tight">
+                    <div class="table-wrap" th:if="${not #lists.isEmpty(summary.recentAlarms)}">
+                        <table class="data">
+                            <thead>
+                            <tr>
+                                <th>设备</th>
+                                <th>级别</th>
+                                <th>状态</th>
+                                <th>告警时间</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="a : ${summary.recentAlarms}" th:data-href="@{/alarms/{id}(id=${a.id})}">
+                                <td>
+                                    <div class="cell-main" th:text="${a.deviceName}">设备</div>
+                                    <div class="cell-sub" th:text="${a.deviceIp}">IP</div>
+                                </td>
+                                <td>
+                                    <span class="badge"
+                                          th:classappend="${a.alarmLevel != null and a.alarmLevel.name() == 'URGENT'} ? 'b-urgent' : 'b-normal'"
+                                          th:text="${a.alarmLevel != null and a.alarmLevel.name() == 'URGENT'} ? '紧急' : '普通'">普通</span>
+                                </td>
+                                <td>
+                                    <span class="badge"
+                                          th:classappend="${'b-' + #strings.toLowerCase(a.alarmStatus != null ? a.alarmStatus.name() : 'pending')}"
+                                          th:text="${a.alarmStatus != null ? a.alarmStatus.desc : '待处理'}">待处理</span>
+                                </td>
+                                <td class="mono" th:text="${a.alarmTime != null ? #temporals.format(a.alarmTime, 'MM-dd HH:mm:ss') : '—'}">—</td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="empty" th:if="${#lists.isEmpty(summary.recentAlarms)}">
+                        <div class="ico">🎉</div>
+                        <div class="t">暂无告警记录</div>
+                        <div class="d">所有设备运行正常</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 离线设备 + 故障排行 -->
+            <div>
+                <div class="card">
+                    <div class="card-head">
+                        <h3>当前离线设备</h3>
+                        <div class="spacer"></div>
+                        <a class="btn btn-ghost btn-sm" th:href="@{/devices}">设备管理</a>
+                    </div>
+                    <div class="card-body tight">
+                        <div class="table-wrap" th:if="${not #lists.isEmpty(summary.offlineDevices)}">
+                            <table class="data">
+                                <thead>
+                                <tr>
+                                    <th>设备名称</th>
+                                    <th>IP / 端口</th>
+                                    <th>累计离线</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                <tr th:each="d : ${summary.offlineDevices}" th:data-href="@{/devices/{id}/edit(id=${d.id})}">
+                                    <td>
+                                        <div class="cell-main" th:text="${d.deviceName}">设备</div>
+                                        <div class="cell-sub" th:text="${d.location} ?: '未填写位置'">位置</div>
+                                    </td>
+                                    <td class="mono" th:text="${d.ipAddress} + ':' + ${d.monitorPort}">IP</td>
+                                    <td><span class="badge b-offline" th:text="${d.offlineCount} + ' 次'">0 次</span></td>
+                                </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="empty" th:if="${#lists.isEmpty(summary.offlineDevices)}">
+                            <div class="ico">💚</div>
+                            <div class="t">全部设备在线</div>
+                            <div class="d">最近一次巡检未发现离线设备</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-0">
+                    <div class="card-head">
+                        <h3>故障次数排行 TOP5</h3>
+                        <div class="spacer"></div>
+                        <a class="btn btn-ghost btn-sm" th:href="@{/alarms/statistics}">详细统计</a>
+                    </div>
+                    <div class="card-body tight">
+                        <div class="rank-list" th:if="${not #lists.isEmpty(topFaults)}">
+                            <div class="rank-item" th:each="r, st : ${topFaults}">
+                                <div class="no" th:text="${st.count}">1</div>
+                                <div class="info">
+                                    <div class="t" th:text="${r.deviceName}">设备</div>
+                                    <div class="d" th:text="${r.deviceIp} + ' · 紧急 ' + ${r.urgentCount} + ' 次'">IP</div>
+                                </div>
+                                <div class="num" th:text="${r.faultCount}">0<small>次</small></div>
+                            </div>
+                        </div>
+                        <div class="empty" th:if="${#lists.isEmpty(topFaults)}">
+                            <div class="ico">📉</div>
+                            <div class="t">暂无故障统计</div>
+                            <div class="d">还没有产生设备离线告警</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 巡检与规则 -->
+        <div class="grid-2 mt-16">
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>最近一次巡检</h3>
+                    <div class="spacer"></div>
+                    <form sec:authorize="hasRole('ADMIN')" th:action="@{/inspects/run}" method="post" style="margin:0">
+                        <button class="btn btn-primary btn-sm" type="submit">立即巡检</button>
+                    </form>
+                </div>
+                <div class="card-body">
+                    <div th:if="${latestLog != null}">
+                        <div class="desc">
+                            <div class="item">
+                                <div class="k">巡检批次</div>
+                                <div class="v" th:text="'#' + ${latestLog.id}">#1</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">触发方式</div>
+                                <div class="v" th:text="${latestLog.triggerType != null and latestLog.triggerType.name() == 'MANUAL'} ? '手动触发' : '定时巡检'">定时</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">设备总数 / 在线 / 离线</div>
+                                <div class="v">
+                                    <span th:text="${latestLog.totalCount}">0</span> /
+                                    <span class="text-success" th:text="${latestLog.onlineCount}">0</span> /
+                                    <span class="text-danger" th:text="${latestLog.offlineCount}">0</span>
+                                </div>
+                            </div>
+                            <div class="item">
+                                <div class="k">耗时</div>
+                                <div class="v" th:text="${latestLog.costMs} + ' ms'">0 ms</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">开始时间</div>
+                                <div class="v mono" th:text="${latestLog.startTime != null ? #temporals.format(latestLog.startTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">状态变化</div>
+                                <div class="v" th:text="${latestLog.changeCount} + ' 台设备状态发生变化'">0 台</div>
+                            </div>
+                        </div>
+                        <div class="mt-16">
+                            <a class="btn btn-ghost btn-sm" th:href="@{/inspects/{id}(id=${latestLog.id})}">查看巡检明细</a>
+                        </div>
+                    </div>
+                    <div class="empty" th:if="${latestLog == null}">
+                        <div class="ico">⏳</div>
+                        <div class="t">尚未执行巡检</div>
+                        <div class="d">系统启动后会自动执行一次，也可点击右上角立即巡检</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>当前告警规则</h3>
+                    <div class="spacer"></div>
+                    <a sec:authorize="hasRole('ADMIN')" class="btn btn-ghost btn-sm" th:href="@{/rule}">修改规则</a>
+                </div>
+                <div class="card-body">
+                    <div class="desc">
+                        <div class="item">
+                            <div class="k">规则名称</div>
+                            <div class="v" th:text="${rule.ruleName} ?: '默认告警规则'">默认</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">巡检间隔</div>
+                            <div class="v" th:text="${rule.inspectInterval} + ' 分钟'">5 分钟</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">失败判定阈值</div>
+                            <div class="v" th:text="'连续 ' + ${rule.failThreshold} + ' 次失败'" >连续 2 次</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">探测超时</div>
+                            <div class="v" th:text="${rule.timeoutMs} + ' ms'">2000 ms</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">通知方式</div>
+                            <div class="v">
+                                <span class="badge b-page" th:if="${rule.notifyPageEnabled == 1}">页面消息</span>
+                                <span class="badge b-mail" th:if="${rule.notifyMailEnabled == 1}">邮件通知</span>
+                                <span class="badge b-plain" th:if="${rule.notifyPageEnabled != 1 and rule.notifyMailEnabled != 1}">未开启</span>
+                            </div>
+                        </div>
+                        <div class="item">
+                            <div class="k">任务状态</div>
+                            <div class="v">
+                                <span class="badge" th:classappend="${rule.activeFlag == 1} ? 'b-online' : 'b-closed'"
+                                      th:text="${rule.activeFlag == 1} ? '定时巡检运行中' : '巡检已暂停'">运行中</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/js/echarts.min.js}"></script>
+<script th:src="@{/js/app.js}"></script>
+<script th:src="@{/js/dashboard.js}"></script>
+</body>
+</html>

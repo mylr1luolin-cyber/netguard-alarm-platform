@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>页面不存在 · NetGuard</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body class="login-body">
+<div class="error-wrap">
+    <div class="error-card">
+        <div class="code">404</div>
+        <h1>页面不存在</h1>
+        <p th:if="${path != null and !#strings.isEmpty(path)}">
+            没有找到 <strong th:text="${path}">/xxx</strong> 对应的页面。
+        </p>
+        <p th:unless="${path != null and !#strings.isEmpty(path)}">
+            这个地址没有对应的页面，可能是链接过期或输入有误。
+        </p>
+        <p class="small muted mb-0">
+            本站入口只有一个：<strong>/login</strong> 登录后进入看板。直接打开
+            <strong>http://服务器IP:8080</strong> 会自动跳到登录页。
+        </p>
+        <div class="form-actions" style="justify-content:center">
+            <a class="btn btn-primary" th:href="@{/dashboard}">返回监控看板</a>
+            <a class="btn btn-ghost" th:href="@{/login}">去登录页</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

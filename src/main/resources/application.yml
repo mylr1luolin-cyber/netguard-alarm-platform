@@ -1,0 +1,84 @@
+server:
+  port: 8080
+  # 出错时不要给用户看 Spring 的 Whitelabel 页面，统一走 templates/error/{403,404,500}.html
+  error:
+    whitelabel:
+      enabled: false
+    include-message: always
+    include-stacktrace: never
+  servlet:
+    context-path: /
+    session:
+      timeout: 2h
+      cookie:
+        http-only: true
+        same-site: lax
+
+spring:
+  application:
+    name: netguard
+  profiles:
+    active: dev
+  thymeleaf:
+    cache: false
+    encoding: UTF-8
+    mode: HTML
+    prefix: classpath:/templates/
+    suffix: .html
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+  mvc:
+    hiddenmethod:
+      filter:
+        enabled: true
+  web:
+    resources:
+      # 静态资源每次协商缓存（no-cache），避免开发/演示时浏览器沿用旧 CSS
+      cache:
+        cachecontrol:
+          no-cache: true
+          max-age: 0
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: com.netguard.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    cache-enabled: false
+    default-enum-type-handler: org.apache.ibatis.type.EnumTypeHandler
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    banner: false
+    db-config:
+      id-type: auto
+      table-underline: true
+      insert-strategy: not_null
+      update-strategy: not_null
+
+# ==================== 业务自定义配置 ====================
+app:
+  # 缓存模式：redis（默认，连接失败自动降级内存）/ memory（强制内存）
+  cache-mode: redis
+  mq:
+    # 是否启用 RabbitMQ 异步通知，false 时使用本地同步通知（无 MQ 环境也能跑通全流程）
+    enabled: true
+  mail:
+    enabled: true
+    from-name: 网络故障告警监控平台
+  upload:
+    dir: ./uploads
+    access-path: /uploads/
+  monitor:
+    default-interval: 5
+    default-timeout: 2000
+    default-fail-threshold: 2
+
+logging:
+  level:
+    root: info
+    com.netguard: debug

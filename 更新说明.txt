@@ -1,0 +1,63 @@
+NetGuard 小文件更新包
+====================
+
+这个包里没有 jar（47 MB），只放"换机器 / 修登录 / 找 MySQL"用得到的脚本和 SQL。
+
+一、换一台机器要拷什么
+----------------------
+必须：target\netguard.jar                       （程序本体，另拷）
+本包：一键启动.bat、一键停止.bat、start-dev.bat、start-mysql.bat
+      tools\find-jdk.ps1、tools\查找JDK.bat
+      tools\find-mysql.ps1、tools\查找MySQL.bat
+      tools\修复登录.bat、tools\重置密码并启动.bat
+      sql\维护-重置管理员密码.sql
+
+二、一个 bat 都没有反应时先做两件事
+----------------------------------
+1) 双击 tools\查找JDK.bat   → 看这台机器有没有 JDK 17。没有就装：
+     winget install EclipseAdoptium.Temurin.17.JDK -e
+2) 双击 tools\查找MySQL.bat → 看这台机器有没有 MySQL。
+   什么都没有 = 登录必然失败（账号存在 MySQL 里），先装：
+     winget install Oracle.MySQL
+   或者把便携版整目录拷到 D:\devtools\mysql\mysql-8.0.28-winx64，
+   或者 set NG_MYSQL_HOME=D:\你自己\mysql-8.0.28-winx64
+
+三、登录一直提示"账号或密码错误"怎么查
+--------------------------------------
+原因通常只有三类，按顺序排：
+
+1) 机器上根本没有 MySQL
+   现象：应用能开出登录页（登录页不查库），但任何账号都登不上。
+   确认：双击 tools\查找MySQL.bat，如果提示 No MySQL found 就是这一类。
+   解决：装 MySQL，然后 start-mysql.bat 起服务，再导入 sql\netguard.sql。
+
+2) MySQL 在，但没有 netguard 库 / 没有账号
+   现象：修复登录.bat 报 ERROR 1049（库不存在）。
+   解决：mysql -u root -p --default-character-set=utf8mb4 < sql\netguard.sql
+
+3) 密文被 $ 展开弄坏了（把 SQL 粘进双引号执行过）
+   现象：SELECT LENGTH(password) FROM sys_user; 不是 60。
+   解决：双击 tools\修复登录.bat
+
+四、修复登录.bat 怎么用
+----------------------
+双击即可，默认 root 密码 123456；也可以带参数：
+    tools\修复登录.bat 你的root密码
+它做的是：找到 mysql.exe → 执行 sql\维护-重置管理员密码.sql（文件重定向，
+不会被 $ 展开）→ 补齐 admin/ops 并把密码重置为 admin123 / ops123。
+
+五、LENGTH(password) 已经是 60 但仍然登不上
+------------------------------------------
+说明库里的密文不是 admin123 算出来的（比如被改过），用不依赖 mysql 客户端的
+方式强制重置：
+
+    双击 tools\重置密码并启动.bat
+
+它带 --app.reset-admin=true 启动，启动时把 admin 重置为 admin123、
+ops 重置为 ops123，窗口别关（关掉服务就停了）。
+
+六、文件编码说明
+----------------
+.bat 一律 GBK + CRLF（cmd 按 ANSI 读，UTF-8 会把命令行拆坏）；
+.ps1 一律 UTF-8 带 BOM（PowerShell 5.1 才认中文）。
+改脚本请保持这个编码，否则会报一堆 "is not recognized"。

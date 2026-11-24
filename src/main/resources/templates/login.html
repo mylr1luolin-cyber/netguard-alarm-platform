@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>登录 · NetGuard 网络故障告警监控平台</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body class="login-body">
+<div class="login-card">
+    <div class="login-left">
+        <div class="lg-brand">
+            <span class="logo">🛡</span>
+            <span>NetGuard</span>
+        </div>
+        <h1>网络故障告警监控平台<br/>让每一次断网都有迹可循</h1>
+        <p class="desc">
+            定时巡检全部网络设备，实时感知在线状态；一旦发现设备离线，立即通过页面消息与邮件双通道通知运维人员，
+            并完整记录告警确认、故障处理与恢复全过程。
+        </p>
+        <div class="feat">
+            <span>⏱ 每 5 / 10 / 30 分钟自动巡检，状态写入数据库与 Redis</span>
+            <span>🚨 设备离线秒级告警，紧急 / 普通分级推送</span>
+            <span>📊 故障次数排行与月度告警趋势可视化</span>
+        </div>
+    </div>
+    <div class="login-right">
+        <h2>欢迎回来</h2>
+        <div class="sub">请使用管理员或运维人员账号登录</div>
+
+        <div class="login-alert" th:if="${errorMsg}" th:text="${errorMsg}">账号或密码错误</div>
+        <div class="login-alert ok" th:if="${successMsg}" th:text="${successMsg}">已安全退出</div>
+
+        <form class="login-form" th:action="@{/login}" method="post">
+            <div class="field">
+                <label for="username">账号</label>
+                <input class="input" id="username" name="username" type="text" placeholder="请输入登录账号"
+                       autocomplete="username" required autofocus/>
+            </div>
+            <div class="field">
+                <label for="password">密码</label>
+                <input class="input" id="password" name="password" type="password" placeholder="请输入登录密码"
+                       autocomplete="current-password" required/>
+            </div>
+            <button class="btn btn-primary" type="submit">登 录</button>
+        </form>
+
+    </div>
+</div>
+</body>
+</html>

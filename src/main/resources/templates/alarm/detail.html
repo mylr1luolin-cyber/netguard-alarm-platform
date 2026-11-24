@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('告警详情')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('alarms')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar('告警详情', '查看故障详情、处理进度并确认告警')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <div class="grid-2">
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>告警信息</h3>
+                    <div class="spacer"></div>
+                    <span class="badge"
+                          th:classappend="${alarm.alarmLevel != null and alarm.alarmLevel.name() == 'URGENT'} ? 'b-urgent' : 'b-normal'"
+                          th:text="${alarm.alarmLevel != null and alarm.alarmLevel.name() == 'URGENT'} ? '紧急告警' : '普通告警'">普通</span>
+                    <span class="badge"
+                          th:classappend="${alarm.alarmStatus != null ? 'b-' + #strings.toLowerCase(alarm.alarmStatus.name()) : 'b-plain'}"
+                          th:text="${alarm.alarmStatus != null ? alarm.alarmStatus.desc : '待处理'}">待处理</span>
+                </div>
+                <div class="card-body">
+                    <div class="desc">
+                        <div class="item">
+                            <div class="k">告警编号</div>
+                            <div class="v" th:text="'#' + ${alarm.id}">#1</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">设备名称</div>
+                            <div class="v" th:text="${alarm.deviceName}">设备</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">设备 IP</div>
+                            <div class="v mono" th:text="${alarm.deviceIp}">IP</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">设备类型</div>
+                            <div class="v" th:text="${alarm.deviceTypeName} ?: '未分类'">类型</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">告警类型</div>
+                            <div class="v"
+                                 th:text="${alarm.alarmType != null and alarm.alarmType.name() == 'RECOVER'} ? '设备恢复通知' : '设备离线告警'">离线</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">告警时间</div>
+                            <div class="v mono"
+                                 th:text="${alarm.alarmTime != null ? #temporals.format(alarm.alarmTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">持续时长</div>
+                            <div class="v" th:text="${alarm.durationText} ?: '故障尚未恢复'">—</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">通知状态</div>
+                            <div class="v">
+                                <span class="badge b-online" th:if="${alarm.notifySent == 1}">已发送通知</span>
+                                <span class="badge b-plain" th:if="${alarm.notifySent != 1}">未发送通知</span>
+                            </div>
+                        </div>
+                        <div class="item">
+                            <div class="k">恢复时间</div>
+                            <div class="v mono"
+                                 th:text="${alarm.recoverTime != null ? #temporals.format(alarm.recoverTime, 'yyyy-MM-dd HH:mm:ss') : '尚未恢复'}">—</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">确认人</div>
+                            <div class="v" th:text="${alarm.confirmUserName} ?: '暂未确认'">—</div>
+                        </div>
+                        <div class="item">
+                            <div class="k">确认时间</div>
+                            <div class="v mono"
+                                 th:text="${alarm.confirmTime != null ? #temporals.format(alarm.confirmTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-16" th:if="${alarm.content != null and !#strings.isEmpty(alarm.content)}">
+                        <div class="k muted small">告警内容</div>
+                        <div class="mt-8" style="background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:14px;line-height:1.8"
+                             th:text="${alarm.content}">内容</div>
+                    </div>
+
+                    <div class="mt-16" th:if="${alarm.handleRemark != null and !#strings.isEmpty(alarm.handleRemark)}">
+                        <div class="k muted small">处理情况说明</div>
+                        <div class="mt-8" style="background:#f0fdf4;border:1px solid #dcfce7;border-radius:10px;padding:14px;line-height:1.8"
+                             th:text="${alarm.handleRemark}">处理说明</div>
+                    </div>
+
+                    <div class="form-actions mt-16">
+                        <a class="btn btn-ghost" th:href="@{/alarms}">返回列表</a>
+                        <a class="btn btn-ghost" th:href="@{/devices}">设备管理</a>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="card" th:if="${alarm.alarmStatus != null and alarm.alarmStatus.name() == 'PENDING'}">
+                    <div class="card-head">
+                        <h3>确认告警</h3>
+                        <span class="sub">确认后请尽快处理故障</span>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{/alarms/confirm}" method="post" th:object="${confirmForm}">
+                            <input type="hidden" th:field="*{id}" th:value="${alarm.id}"/>
+                            <div class="field">
+                                <label for="handleRemark">处理情况说明</label>
+                                <textarea class="textarea" id="handleRemark" th:field="*{handleRemark}"
+                                          placeholder="如：已联系机房值班人员检查电源，预计 30 分钟内恢复"></textarea>
+                                <div class="hint">记录处理措施，便于后续复盘与统计</div>
+                                <div class="field-error" th:if="${#fields.hasErrors('handleRemark')}"
+                                     th:errors="*{handleRemark}"></div>
+                            </div>
+                            <div class="form-actions mt-16">
+                                <button class="btn btn-primary" type="submit">确认并记录处理</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>处理进度</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="timeline">
+                            <div class="node danger">
+                                <div class="t">告警产生</div>
+                                <div class="d">
+                                    <span th:text="${alarm.alarmTime != null ? #temporals.format(alarm.alarmTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</span>
+                                    · 巡检探测失败，判定设备离线
+                                </div>
+                            </div>
+                            <div class="node" th:if="${alarm.confirmTime != null}">
+                                <div class="t">告警确认</div>
+                                <div class="d">
+                                    <span th:text="${alarm.confirmUserName} ?: '运维人员'">运维</span>
+                                    · <span th:text="${#temporals.format(alarm.confirmTime, 'yyyy-MM-dd HH:mm:ss')}">—</span>
+                                    <div th:if="${alarm.handleRemark != null}" th:text="${alarm.handleRemark}">处理说明</div>
+                                </div>
+                            </div>
+                            <div class="node success" th:if="${alarm.recoverTime != null}">
+                                <div class="t">设备恢复在线</div>
+                                <div class="d">
+                                    <span th:text="${#temporals.format(alarm.recoverTime, 'yyyy-MM-dd HH:mm:ss')}">—</span>
+                                    · 故障持续 <span th:text="${alarm.durationText}">—</span>
+                                </div>
+                            </div>
+                            <div class="node" th:if="${alarm.recoverTime == null}">
+                                <div class="t muted">等待恢复</div>
+                                <div class="d">设备恢复在线后系统会自动发送恢复通知并更新告警状态</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

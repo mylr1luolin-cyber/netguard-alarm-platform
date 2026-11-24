@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('设备类型')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('types')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar('设备类型', '维护网络设备的分类字典，用于设备归类与看板统计分析')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <div class="grid-2">
+            <div class="card mb-0">
+                <div class="card-head">
+                    <h3>类型列表</h3>
+                    <span class="sub" th:text="'共 ' + ${#lists.size(types)} + ' 个类型'">共 0 个类型</span>
+                </div>
+                <div class="card-body tight">
+                    <div class="table-wrap" th:if="${not #lists.isEmpty(types)}">
+                        <table class="data">
+                            <thead>
+                            <tr>
+                                <th style="width:56px">排序</th>
+                                <th>类型名称</th>
+                                <th>编码</th>
+                                <th>属性</th>
+                                <th>备注</th>
+                                <th class="right">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="t : ${types}">
+                                <td class="mono small" th:text="${t.sortOrder}">99</td>
+                                <td class="cell-main">
+                                    <span th:text="${t.icon} ?: '📦'">📦</span>
+                                    <span th:text="${t.typeName}">类型</span>
+                                </td>
+                                <td class="mono small" th:text="${t.typeCode}">CODE</td>
+                                <td>
+                                    <span class="badge b-core" th:if="${t.coreFlag == 1}">重点类别</span>
+                                    <span class="muted small" th:if="${t.coreFlag != 1}">普通</span>
+                                </td>
+                                <td class="small muted" th:text="${t.remark} ?: '—'">—</td>
+                                <td class="right nowrap">
+                                    <button class="btn btn-ghost btn-sm" type="button"
+                                            th:attr="onclick=|fillEdit(${t.id}, '${t.typeName}', '${t.typeCode}', '${t.icon}', ${t.coreFlag}, ${t.sortOrder})|">
+                                        编辑
+                                    </button>
+                                    <form th:action="@{/types/{id}/delete(id=${t.id})}" method="post"
+                                          style="display:inline">
+                                        <button class="btn btn-danger btn-sm" type="submit"
+                                                th:attr="data-confirm=|确定删除类型「${t.typeName}」吗？该类型下存在设备时无法删除。|">
+                                            删除
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="empty" th:if="${#lists.isEmpty(types)}">
+                        <div class="ico">📦</div>
+                        <div class="t">还没有设备类型</div>
+                        <div class="d">先在右侧新增类型，再录入设备</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-head">
+                    <h3 id="formTitle">新增设备类型</h3>
+                    <span class="sub">类型编码建议使用大写英文</span>
+                </div>
+                <div class="card-body">
+                    <form id="typeForm" th:action="@{/types}" method="post" th:object="${typeForm}">
+                        <input type="hidden" id="typeId" th:field="*{id}"/>
+                        <div class="form-grid">
+                            <div class="field full">
+                                <label class="req" for="typeName">类型名称</label>
+                                <input class="input" id="typeName" type="text" th:field="*{typeName}"
+                                       placeholder="如：核心交换机"/>
+                                <div class="field-error" th:if="${#fields.hasErrors('typeName')}"
+                                     th:errors="*{typeName}"></div>
+                            </div>
+                            <div class="field">
+                                <label class="req" for="typeCode">类型编码</label>
+                                <input class="input mono" id="typeCode" type="text" th:field="*{typeCode}"
+                                       placeholder="CORE_SWITCH"/>
+                                <div class="hint">唯一标识，全大写字母与下划线</div>
+                                <div class="field-error" th:if="${#fields.hasErrors('typeCode')}"
+                                     th:errors="*{typeCode}"></div>
+                            </div>
+                            <div class="field">
+                                <label for="icon">图标</label>
+                                <input class="input" id="icon" type="text" th:field="*{icon}" placeholder="🖧"/>
+                                <div class="hint">可填一个 Emoji 作为分类图标</div>
+                            </div>
+                            <div class="field">
+                                <label for="sortOrder">排序号</label>
+                                <input class="input" id="sortOrder" type="number" min="0" max="9999"
+                                       th:field="*{sortOrder}"/>
+                                <div class="hint">数字越小越靠前</div>
+                            </div>
+                            <div class="field">
+                                <label for="typeCoreFlag">重点类别</label>
+                                <select class="select" id="typeCoreFlag" th:field="*{coreFlag}">
+                                    <option value="0" th:selected="${typeForm.coreFlag == 0}">普通类别</option>
+                                    <option value="1" th:selected="${typeForm.coreFlag == 1}">重点类别（离线易触发紧急告警）</option>
+                                </select>
+                            </div>
+                            <div class="field full">
+                                <label for="typeRemark">备注</label>
+                                <textarea class="textarea" id="typeRemark" th:field="*{remark}"
+                                          placeholder="该类型设备的说明"></textarea>
+                            </div>
+                        </div>
+                        <div class="form-actions mt-16">
+                            <button class="btn btn-primary" type="submit" id="submitBtn">新增类型</button>
+                            <button class="btn btn-ghost" type="button" onclick="resetForm()">重置</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/app.js}"></script>
+<script>
+    function fillEdit(id, name, code, icon, coreFlag, sortOrder) {
+        document.getElementById('formTitle').textContent = '编辑设备类型';
+        document.getElementById('typeForm').action = '/types/' + id;
+        document.getElementById('submitBtn').textContent = '保存修改';
+        document.getElementById('typeId').value = id;
+        document.getElementById('typeName').value = name;
+        document.getElementById('typeCode').value = code;
+        document.getElementById('icon').value = icon === 'null' ? '' : icon;
+        document.getElementById('sortOrder').value = sortOrder;
+        document.getElementById('typeCoreFlag').value = coreFlag;
+        document.getElementById('typeRemark').value = '';
+        window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function resetForm() {
+        document.getElementById('formTitle').textContent = '新增设备类型';
+        document.getElementById('typeForm').action = '/types';
+        document.getElementById('submitBtn').textContent = '新增类型';
+        document.getElementById('typeId').value = '';
+        document.getElementById('typeName').value = '';
+        document.getElementById('typeCode').value = '';
+        document.getElementById('icon').value = '';
+        document.getElementById('sortOrder').value = 99;
+        document.getElementById('typeCoreFlag').value = '0';
+        document.getElementById('typeRemark').value = '';
+    }
+</script>
+</body>
+</html>

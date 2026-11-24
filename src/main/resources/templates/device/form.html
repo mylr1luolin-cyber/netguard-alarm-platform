@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/layout :: head('设备录入')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('devices')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar(${editing} ? '编辑设备' : '录入设备', '设备信息变更后，下一次巡检将按最新配置执行探测')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <form class="card" th:with="formAction=${editing ? '/devices/' + deviceForm.id : '/devices'}"
+              th:action="@{${formAction}}"
+              th:object="${deviceForm}" method="post" enctype="multipart/form-data">
+            <div class="card-head">
+                <h3 th:text="${editing} ? '编辑设备信息' : '新增监控设备'">新增监控设备</h3>
+                <div class="spacer"></div>
+                <a class="btn btn-ghost btn-sm" th:href="@{/devices}">返回列表</a>
+            </div>
+            <div class="card-body">
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="deviceCode">设备编号 <span class="req">*</span></label>
+                        <input class="input" id="deviceCode" type="text" th:field="*{deviceCode}"
+                               placeholder="如 CORE-SW-01，仅允许字母数字下划线中划线"/>
+                        <div class="field-error" th:if="${#fields.hasErrors('deviceCode')}" th:errors="*{deviceCode}"></div>
+                    </div>
+                    <div class="field">
+                        <label for="deviceName">设备名称 <span class="req">*</span></label>
+                        <input class="input" id="deviceName" type="text" th:field="*{deviceName}"
+                               placeholder="如 核心交换机 A"/>
+                        <div class="field-error" th:if="${#fields.hasErrors('deviceName')}" th:errors="*{deviceName}"></div>
+                    </div>
+                    <div class="field">
+                        <label for="ipAddress">IP 地址 <span class="req">*</span></label>
+                        <input class="input mono" id="ipAddress" type="text" th:field="*{ipAddress}"
+                               placeholder="如 192.168.1.1"/>
+                        <div class="field-error" th:if="${#fields.hasErrors('ipAddress')}" th:errors="*{ipAddress}"></div>
+                    </div>
+                    <div class="field">
+                        <label for="monitorPort">监控端口 <span class="req">*</span></label>
+                        <input class="input" id="monitorPort" type="number" min="1" max="65535"
+                               th:field="*{monitorPort}" placeholder="如 80 / 22 / 3306"/>
+                        <div class="hint">巡检时对该端口做 TCP 连通性探测，填 0 则使用 ICMP Ping 检测</div>
+                        <div class="field-error" th:if="${#fields.hasErrors('monitorPort')}" th:errors="*{monitorPort}"></div>
+                    </div>
+                    <div class="field">
+                        <label for="deviceTypeId">设备类型 <span class="req">*</span></label>
+                        <select class="select" id="deviceTypeId" th:field="*{deviceTypeId}">
+                            <option value="">请选择设备类型</option>
+                            <option th:each="t : ${types}" th:value="${t.id}"
+                                    th:text="${t.coreFlag == 1 ? t.typeName + '（核心设备）' : t.typeName}">类型</option>
+                        </select>
+                        <div class="field-error" th:if="${#fields.hasErrors('deviceTypeId')}" th:errors="*{deviceTypeId}"></div>
+                    </div>
+                    <div class="field">
+                        <label for="location">部署位置</label>
+                        <input class="input" id="location" type="text" th:field="*{location}"
+                               placeholder="如 机房 A 区 3 号机柜"/>
+                    </div>
+
+                    <div class="field full">
+                        <div class="switch-row">
+                            <label class="switch">
+                                <input type="checkbox" th:field="*{coreFlag}" value="1"/>
+                                <span class="slider"></span>
+                            </label>
+                            <div class="txt">
+                                <div class="t">标记为重点监控设备</div>
+                                <div class="d">重点设备离线时告警级别判定为「紧急」，并优先推送通知</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field full">
+                        <label for="imageFile">设备图片</label>
+                        <input class="input" id="imageFile" type="file" name="imageFile"
+                               accept="image/png,image/jpeg,image/gif"/>
+                        <div class="hint">支持 jpg / png / gif，大小不超过 5MB，用于设备卡片展示</div>
+                        <div class="mt-8" th:if="${deviceForm.imageUrl != null and !#strings.isEmpty(deviceForm.imageUrl)}">
+                            <img th:src="@{${deviceForm.imageUrl}}" alt="设备图片"
+                                 style="max-height:96px;border-radius:10px;border:1px solid #e2e8f0"/>
+                        </div>
+                    </div>
+
+                    <div class="field full">
+                        <label for="remark">备注</label>
+                        <textarea class="textarea" id="remark" th:field="*{remark}"
+                                  placeholder="设备用途、负责人、维护窗口等补充说明"></textarea>
+                    </div>
+                </div>
+
+                <div class="form-actions mt-16">
+                    <button class="btn btn-primary" type="submit"
+                            th:text="${editing} ? '保存修改' : '确认录入'">确认录入</button>
+                    <a class="btn btn-ghost" th:href="@{/devices}">取消</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

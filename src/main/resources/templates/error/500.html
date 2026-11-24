@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>系统异常 · NetGuard</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body class="login-body">
+<div class="error-wrap">
+    <div class="error-card">
+        <div class="code">500</div>
+        <h1>系统开了个小差</h1>
+        <p th:text="${message} ?: '系统处理请求时发生异常，请稍后重试或联系管理员。'">
+            系统处理请求时发生异常，请稍后重试或联系管理员。
+        </p>
+        <div class="form-actions" style="justify-content:center">
+            <a class="btn btn-primary" th:href="@{/dashboard}">返回监控看板</a>
+            <a class="btn btn-ghost" href="javascript:history.back()">返回上一页</a>
+        </div>
+        <div class="hint mt-16">若问题持续出现，请查看服务端日志 logs/netguard-error.log</div>
+    </div>
+</div>
+</body>
+</html>

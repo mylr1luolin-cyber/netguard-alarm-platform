@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head th:replace="~{fragments/layout :: head('告警规则')}"></head>
+<body>
+<aside th:replace="~{fragments/layout :: sidebar('rule')}"></aside>
+
+<div class="main">
+    <header th:replace="~{fragments/layout :: topbar('告警规则配置', '配置巡检间隔、失败阈值、重点监控设备与通知方式')}"></header>
+    <div class="flash-wrap" th:replace="~{fragments/layout :: flash}"></div>
+
+    <div class="content">
+        <div class="grid-2">
+            <form class="card mb-0" th:action="@{/rule}" method="post" th:object="${ruleForm}">
+                <div class="card-head">
+                    <h3>巡检与告警参数</h3>
+                    <span class="sub">保存后立即生效，无需重启服务</span>
+                </div>
+                <div class="card-body">
+                    <div class="form-grid">
+                        <div class="field full">
+                            <label class="req" for="ruleName">规则名称</label>
+                            <input class="input" id="ruleName" type="text" th:field="*{ruleName}"
+                                   placeholder="如：核心网络设备巡检规则"/>
+                            <div class="field-error" th:if="${#fields.hasErrors('ruleName')}" th:errors="*{ruleName}"></div>
+                        </div>
+
+                        <div class="field">
+                            <label class="req" for="inspectInterval">巡检间隔</label>
+                            <select class="select" id="inspectInterval" th:field="*{inspectInterval}">
+                                <option value="5" th:selected="${ruleForm.inspectInterval == 5}">每 5 分钟</option>
+                                <option value="10" th:selected="${ruleForm.inspectInterval == 10}">每 10 分钟</option>
+                                <option value="30" th:selected="${ruleForm.inspectInterval == 30}">每 30 分钟</option>
+                            </select>
+                            <div class="hint">系统按此间隔定时巡检全部设备</div>
+                            <div class="field-error" th:if="${#fields.hasErrors('inspectInterval')}"
+                                 th:errors="*{inspectInterval}"></div>
+                        </div>
+
+                        <div class="field">
+                            <label class="req" for="failThreshold">失败阈值</label>
+                            <input class="input" id="failThreshold" type="number" min="1" max="5"
+                                   th:field="*{failThreshold}"/>
+                            <div class="hint">连续探测失败达到该次数才判定离线（1-5 次）</div>
+                            <div class="field-error" th:if="${#fields.hasErrors('failThreshold')}"
+                                 th:errors="*{failThreshold}"></div>
+                        </div>
+
+                        <div class="field">
+                            <label class="req" for="timeoutMs">探测超时</label>
+                            <input class="input" id="timeoutMs" type="number" min="500" max="10000" step="100"
+                                   th:field="*{timeoutMs}"/>
+                            <div class="hint">单台设备探测超时时间（500-10000 毫秒）</div>
+                            <div class="field-error" th:if="${#fields.hasErrors('timeoutMs')}" th:errors="*{timeoutMs}"></div>
+                        </div>
+
+                        <div class="field">
+                            <label class="req" for="urgentEnabled">重点设备紧急级别</label>
+                            <select class="select" id="urgentEnabled" th:field="*{urgentEnabled}">
+                                <option value="1" th:selected="${ruleForm.urgentEnabled == 1}">开启（重点设备离线=紧急告警）</option>
+                                <option value="0" th:selected="${ruleForm.urgentEnabled == 0}">关闭（全部按普通告警）</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label class="req" for="activeFlag">巡检开关</label>
+                            <select class="select" id="activeFlag" th:field="*{activeFlag}">
+                                <option value="1" th:selected="${ruleForm.activeFlag == 1}">启用定时巡检</option>
+                                <option value="0" th:selected="${ruleForm.activeFlag == 0}">暂停定时巡检</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label class="req" for="notifyPageEnabled">页面通知</label>
+                            <select class="select" id="notifyPageEnabled" th:field="*{notifyPageEnabled}">
+                                <option value="1" th:selected="${ruleForm.notifyPageEnabled == 1}">开启</option>
+                                <option value="0" th:selected="${ruleForm.notifyPageEnabled == 0}">关闭</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label class="req" for="notifyMailEnabled">邮件通知</label>
+                            <select class="select" id="notifyMailEnabled" th:field="*{notifyMailEnabled}">
+                                <option value="1" th:selected="${ruleForm.notifyMailEnabled == 1}">开启</option>
+                                <option value="0" th:selected="${ruleForm.notifyMailEnabled == 0}">关闭</option>
+                            </select>
+                        </div>
+
+                        <div class="field full">
+                            <label for="mailReceivers">邮件接收人</label>
+                            <input class="input" id="mailReceivers" type="text" th:field="*{mailReceivers}"
+                                   placeholder="多个邮箱用英文逗号分隔，如 ops@example.com,admin@example.com"/>
+                            <div class="hint">开启邮件通知时必须填写；留空则默认发送给全部启用的运维人员邮箱</div>
+                            <div class="field-error" th:if="${#fields.hasErrors('mailReceivers')}"
+                                 th:errors="*{mailReceivers}"></div>
+                        </div>
+
+                        <div class="field full">
+                            <label for="remark">备注</label>
+                            <textarea class="textarea" id="remark" th:field="*{remark}"
+                                      placeholder="规则说明，便于团队理解"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="form-actions mt-16">
+                        <button class="btn btn-primary" type="submit">保存规则</button>
+                        <a class="btn btn-ghost" th:href="@{/dashboard}">返回监控看板</a>
+                    </div>
+                </div>
+            </form>
+
+            <div>
+                <div class="card">
+                    <div class="card-head">
+                        <h3>当前生效规则</h3>
+                        <span class="badge"
+                              th:classappend="${rule.activeFlag == 1} ? 'b-online' : 'b-closed'"
+                              th:text="${rule.activeFlag == 1} ? '运行中' : '已暂停'">运行中</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="desc">
+                            <div class="item">
+                                <div class="k">规则名称</div>
+                                <div class="v" th:text="${rule.ruleName} ?: '默认告警规则'">默认告警规则</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">巡检间隔</div>
+                                <div class="v" th:text="${rule.inspectInterval} + ' 分钟'">5 分钟</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">失败阈值</div>
+                                <div class="v" th:text="${rule.failThreshold} + ' 次'">2 次</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">探测超时</div>
+                                <div class="v" th:text="${rule.timeoutMs} + ' ms'">2000 ms</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">重点设备紧急</div>
+                                <div class="v" th:text="${rule.urgentEnabled == 1} ? '已开启' : '已关闭'">已开启</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">页面通知</div>
+                                <div class="v" th:text="${rule.notifyPageEnabled == 1} ? '已开启' : '已关闭'">已开启</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">邮件通知</div>
+                                <div class="v" th:text="${rule.notifyMailEnabled == 1} ? '已开启' : '已关闭'">已关闭</div>
+                            </div>
+                            <div class="item full">
+                                <div class="k">邮件接收人</div>
+                                <div class="v" th:text="${rule.mailReceivers} ?: '未单独配置（发送给全部启用用户）'">未配置</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">最后更新人</div>
+                                <div class="v" th:text="${rule.updateBy} ?: '—'">—</div>
+                            </div>
+                            <div class="item">
+                                <div class="k">更新时间</div>
+                                <div class="v mono"
+                                     th:text="${rule.updateTime != null ? #temporals.format(rule.updateTime, 'yyyy-MM-dd HH:mm:ss') : '—'}">—</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-head">
+                        <h3>规则说明</h3>
+                    </div>
+                    <div class="card-body small" style="line-height:1.9">
+                        <p>· <b>巡检间隔</b>：每 5 / 10 / 30 分钟自动巡检全部启用设备，采用 TCP 端口探测（端口&gt;0）或 ICMP Ping（端口=0）。</p>
+                        <p>· <b>失败阈值</b>：连续探测失败达到阈值后才判定离线，避免网络抖动产生的误报。</p>
+                        <p>· <b>紧急级别</b>：开启后，被标记为"重点监控"的设备离线时产生紧急告警。</p>
+                        <p>· <b>通知方式</b>：页面通知写入通知中心；邮件通知通过 Spring Mail 异步发送，发送记录可追溯。</p>
+                        <p>· <b>即时生效</b>：保存后系统会重新排程巡检任务，无需重启。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script th:src="@{/js/app.js}"></script>
+</body>
+</html>

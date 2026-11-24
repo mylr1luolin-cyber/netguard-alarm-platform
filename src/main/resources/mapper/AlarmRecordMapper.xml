@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.netguard.mapper.AlarmRecordMapper">
+
+    <!-- 告警分页：关联设备表与类型表，支持关键字/级别/状态/类型/时间范围动态条件 -->
+    <select id="selectAlarmPage" resultType="com.netguard.vo.AlarmRecordVO">
+        SELECT a.id,
+               a.device_id,
+               a.device_name,
+               a.device_ip,
+               a.alarm_type,
+               a.alarm_level,
+               a.alarm_status,
+               a.alarm_time,
+               a.confirm_user_id,
+               a.confirm_user_name,
+               a.confirm_time,
+               a.handle_remark,
+               a.recover_time,
+               a.close_time,
+               a.duration_minutes,
+               a.notify_sent,
+               a.remark,
+               a.create_time,
+               a.update_time,
+               t.type_name AS deviceTypeName
+        FROM alarm_record a
+        LEFT JOIN device d ON a.device_id = d.id
+        LEFT JOIN device_type t ON d.device_type_id = t.id
+        <where>
+            <if test="q.keyword != null and q.keyword != ''">
+                AND (a.device_name LIKE CONCAT('%', #{q.keyword}, '%')
+                     OR a.device_ip LIKE CONCAT('%', #{q.keyword}, '%'))
+            </if>
+            <if test="q.level != null and q.level != ''">
+                AND a.alarm_level = #{q.level}
+            </if>
+            <if test="q.status != null and q.status != ''">
+                AND a.alarm_status = #{q.status}
+            </if>
+            <if test="q.type != null and q.type != ''">
+                AND a.alarm_type = #{q.type}
+            </if>
+            <if test="q.startDate != null and q.startDate != ''">
+                AND a.alarm_time &gt;= CONCAT(#{q.startDate}, ' 00:00:00')
+            </if>
+            <if test="q.endDate != null and q.endDate != ''">
+                AND a.alarm_time &lt;= CONCAT(#{q.endDate}, ' 23:59:59')
+            </if>
+        </where>
+        ORDER BY a.alarm_time DESC, a.id DESC
+    </select>
+
+    <!-- 按天聚合：月度告警趋势图 -->
+    <select id="countByDay" resultType="com.netguard.vo.CountItemVO">
+        SELECT DATE_FORMAT(a.alarm_time, '%Y-%m-%d') AS name,
+               COUNT(1)                              AS value
+        FROM alarm_record a
+        WHERE a.alarm_type = 'OFFLINE'
+          AND a.alarm_time &gt;= #{start}
+          AND a.alarm_time &lt; #{end}
+        GROUP BY DATE_FORMAT(a.alarm_time, '%Y-%m-%d')
+        ORDER BY name ASC
+    </select>
+
+    <!-- 按级别聚合 -->
+    <select id="countByLevel" resultType="com.netguard.vo.CountItemVO">
+        SELECT a.alarm_level AS name, COUNT(1) AS value
+        FROM alarm_record a
+        <where>
+            a.alarm_type = 'OFFLINE'
+            <if test="start != null">
+                AND a.alarm_time &gt;= #{start}
+            </if>
+            <if test="end != null">
+                AND a.alarm_time &lt; #{end}
+            </if>
+        </where>
+        GROUP BY a.alarm_level
+    </select>
+
+    <!-- 按告警类型聚合 -->
+    <select id="countByType" resultType="com.netguard.vo.CountItemVO">
+        SELECT a.alarm_type AS name, COUNT(1) AS value
+        FROM alarm_record a
+        <where>
+            <if test="start != null">
+                a.alarm_time &gt;= #{start}
+            </if>
+            <if test="end != null">
+                AND a.alarm_time &lt; #{end}
+            </if>
+        </where>
+        GROUP BY a.alarm_type
+    </select>
+
+</mapper>
